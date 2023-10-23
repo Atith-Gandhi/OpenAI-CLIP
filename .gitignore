@@ -1,2 +1,7 @@
 *.pyc
 __pycache__
+*.torch
+Flicker-8k/
+*.out
+*.pt
+*.zip

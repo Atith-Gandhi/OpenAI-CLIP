@@ -26,10 +26,15 @@ class CLIPModel(nn.Module):
         text_features = self.text_encoder(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
         )
+
+        # print(image_features.shape)
+        # print(text_features.shape)
+
         # Getting Image and Text Embeddings (with same dimension)
         image_embeddings = self.image_projection(image_features)
         text_embeddings = self.text_projection(text_features)
 
+        
         # Calculating the Loss
         logits = (text_embeddings @ image_embeddings.T) / self.temperature
         images_similarity = image_embeddings @ image_embeddings.T

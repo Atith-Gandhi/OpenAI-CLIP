@@ -3,7 +3,7 @@ from torch import nn
 import timm
 from transformers import DistilBertModel, DistilBertConfig
 import config as CFG
-
+from once_for_all.ofa.model_zoo import ofa_net
 
 class ImageEncoder(nn.Module):
     """
@@ -17,6 +17,12 @@ class ImageEncoder(nn.Module):
         self.model = timm.create_model(
             model_name, pretrained, num_classes=0, global_pool="avg"
         )
+        #agandhi98 
+        # self.model = nn.Sequential(
+        #     ofa_net('ofa_resnet50', pretrained=True),
+        #     nn.Linear(1000, 2048)
+        # )
+        print(self.model.eval())
         for p in self.model.parameters():
             p.requires_grad = trainable
 
@@ -60,6 +66,7 @@ class ProjectionHead(nn.Module):
         self.layer_norm = nn.LayerNorm(projection_dim)
     
     def forward(self, x):
+        print(x.shape)
         projected = self.projection(x)
         x = self.gelu(projected)
         x = self.fc(x)
