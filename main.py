@@ -3,6 +3,7 @@ import gc
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import random
 
 import torch
 from torch import nn
@@ -13,6 +14,31 @@ from dataset import CLIPDataset, get_transforms
 from CLIP import CLIPModel
 from utils import AvgMeter, get_lr
 
+image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
+           {'w': 1, 'd': 2, 'e': 0.25},
+           {'w': 1, 'd': 1, 'e': 0.35},
+           {'w': 1, 'd': 0, 'e': 0.25},
+           {'w': 0.65, 'd': 2, 'e': 0.35},
+           {'w': 0.65, 'd': 1, 'e': 0.2},
+           {'w': 0.65, 'd': 1, 'e': 0.25},
+           {'w': 0.65, 'd': 0, 'e': 0.35},
+           {'w': 0.35, 'd': 2, 'e': 0.2},
+           {'w': 0.35, 'd': 1, 'e': 0.25},
+           {'w': 0.35, 'd': 0, 'e': 0.35},
+           {'w': 0.35, 'd': 0, 'e': 0.2}]
+
+text_subnets = [{'w': 0.25, 'd': 0.5},
+                {'w': 0.25, 'd': 0.75},
+                {'w': 0.25, 'd': 1.0},
+                {'w': 0.5, 'd': 0.5},
+                {'w': 0.5, 'd': 0.75},
+                {'w': 0.5, 'd': 1.0},
+                {'w': 0.75, 'd': 0.5},
+                {'w': 0.75, 'd': 0.75},
+                {'w': 0.75, 'd': 1.0},
+                {'w': 1.0, 'd': 0.5},
+                {'w': 1.0, 'd': 0.75},
+                {'w': 1.0, 'd': 1.0}]
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
@@ -48,15 +74,33 @@ def build_loaders(dataframe, tokenizer, mode):
     )
     return dataloader
 
+def change_image_encoder_subnet(model, subnet_no):
+    model.image_encoder.ofa_network.set_active_subnet(w=image_subnets[subnet_no]['w'],
+                                      e=image_subnets[subnet_no]['e'], 
+                                      d=image_subnets[subnet_no]['d'])
+    manual_subnet = model.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
+    model.image_encoder.model[0] = manual_subnet
 
+def change_text_encoder_subnet(model, subnet_no):
+    model.text_encoder.model.apply(lambda m: setattr(m, 'depth_mult', text_subnets[subnet_no]['d']))
+    model.text_encoder.model.apply(lambda m: setattr(m, 'width_mult', text_subnets[subnet_no]['w']))
+ 
 def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
     loss_meter = AvgMeter()
     tqdm_object = tqdm(train_loader, total=len(train_loader))
     for batch in tqdm_object:
         batch = {k: v.to(CFG.device) for k, v in batch.items() if k != "caption"}
-        loss = model(batch)
         optimizer.zero_grad()
-        loss.backward()
+        random_integers = random.sample(range(144), 4)
+        for subnet_no in random_integers:
+            # print(model)
+            change_image_encoder_subnet(model, int(subnet_no/12))
+            change_text_encoder_subnet(model, int(subnet_no%12))
+
+            print(model.eval())
+            loss = model(batch)/len(random_integers)
+            loss.backward()
+        
         optimizer.step()
         if step == "batch":
             lr_scheduler.step()
@@ -83,6 +127,15 @@ def valid_epoch(model, valid_loader):
     return loss_meter
 
 
+# def sample_models():
+#     # pairs = [(x, y) for x in range(0, 12) for y in range(0, 12)]
+#     random_integers = random.sample(range(144), 4)
+#     print("random_integers: ", random_integers)
+#     return [CLIPModel(submodel=random_integers[0]).to(CFG.device), 
+#     CLIPModel(submodel=random_integers[1]).to(CFG.device),
+#     CLIPModel(submodel=random_integers[2]).to(CFG.device),
+#     CLIPModel(submodel=random_integers[3]).to(CFG.device)]
+
 def main():
     train_df, valid_df = make_train_valid_dfs()
     tokenizer = DistilBertTokenizer.from_pretrained(CFG.text_tokenizer)
@@ -90,6 +143,7 @@ def main():
     valid_loader = build_loaders(valid_df, tokenizer, mode="valid")
 
 
+    # model = CLIPModel().to(CFG.device)
     model = CLIPModel().to(CFG.device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=CFG.lr, weight_decay=CFG.weight_decay
@@ -102,8 +156,10 @@ def main():
     best_loss = float('inf')
     for epoch in range(CFG.epochs):
         print(f"Epoch: {epoch + 1}")
-        model.train()
+        # for model in sample_models:
+        # model.train()
         train_loss = train_epoch(model, train_loader, optimizer, lr_scheduler, step)
+        
         model.eval()
         with torch.no_grad():
             valid_loss = valid_epoch(model, valid_loader)
