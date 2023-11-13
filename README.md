@@ -1,3 +1,9 @@
+## SysML Project code running instructions:
+
+1. pip install ofa
+2. Install the Flicker-8k dataset from [here](https://www.kaggle.com/datasets/adityajn105/flickr8k/) and unzip the file to Flicker-8k/ folder
+3. Download Dynabert zip file from [here](https://drive.google.com/file/d/1pYApaDcse5QIB6lZagWO0uElAavFazpA/view) and put it in the pretrained/ folder 
+
 ## Update (August 2022)
 I am happy to find out that this code has been used and cited in the following papers:
 1. [Domino: Discovering Systematic Errors with Cross-Modal Embeddings](https://arxiv.org/abs/2203.14960) by <em>Eyuboglu et. al.</em> at **ICLR 2022** 
