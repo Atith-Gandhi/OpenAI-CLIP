@@ -18,14 +18,10 @@ image_subnets = [{'w': 1, 'd': 2, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.2}]
 
-image_config_class = BertConfig
-image_config = image_config_class.from_pretrained("pretrained/dynabert/MRPC/", num_labels=768)
-image_model = BertForSequenceClassification.from_pretrained("pretrained/dynabert/QQP/", config=image_config, ignore_mismatched_sizes=True)
+text_config_class = BertConfig
+text_config = text_config_class.from_pretrained("pretrained/dynabert/MRPC/", num_labels=768)
+text_model = BertForSequenceClassification.from_pretrained("pretrained/dynabert/QQP/", config=text_config, ignore_mismatched_sizes=True)
     
-# model = nn.Sequential(
-#             ofa_net('ofa_resnet50', pretrained=True),
-#             nn.Linear(1000, 2048)
-#         )
 class ImageEncoder(nn.Module):
     """
     Encode images to a fixed size vector
@@ -69,7 +65,7 @@ class TextEncoder(nn.Module):
         # else:
         #     self.model = DistilBertModel(config=DistilBertConfig())
         # image_model.apply()
-        self.model = image_model
+        self.model = text_model
             
         for p in self.model.parameters():
             p.requires_grad = trainable

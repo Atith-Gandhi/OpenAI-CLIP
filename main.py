@@ -13,32 +13,45 @@ import config as CFG
 from dataset import CLIPDataset, get_transforms
 from CLIP import CLIPModel
 from utils import AvgMeter, get_lr
+import argparse
 
-image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
-           {'w': 1, 'd': 2, 'e': 0.25},
-           {'w': 1, 'd': 1, 'e': 0.35},
-           {'w': 1, 'd': 0, 'e': 0.25},
-           {'w': 0.65, 'd': 2, 'e': 0.35},
-           {'w': 0.65, 'd': 1, 'e': 0.2},
-           {'w': 0.65, 'd': 1, 'e': 0.25},
-           {'w': 0.65, 'd': 0, 'e': 0.35},
-           {'w': 0.35, 'd': 2, 'e': 0.2},
-           {'w': 0.35, 'd': 1, 'e': 0.25},
-           {'w': 0.35, 'd': 0, 'e': 0.35},
-           {'w': 0.35, 'd': 0, 'e': 0.2}]
+# Define command-line arguments
+parser = argparse.ArgumentParser(description='Your program description')
+parser.add_argument('--sampling-function', type=str, choices=['randomized_sampling', 'big_small_sampling'], default='random',
+                    help='Choose the sampling function for subnets (random or your custom function)')
 
-text_subnets = [{'w': 0.25, 'd': 0.5},
-                {'w': 0.25, 'd': 0.75},
-                {'w': 0.25, 'd': 1.0},
-                {'w': 0.5, 'd': 0.5},
-                {'w': 0.5, 'd': 0.75},
-                {'w': 0.5, 'd': 1.0},
-                {'w': 0.75, 'd': 0.5},
-                {'w': 0.75, 'd': 0.75},
-                {'w': 0.75, 'd': 1.0},
-                {'w': 1.0, 'd': 0.5},
-                {'w': 1.0, 'd': 0.75},
-                {'w': 1.0, 'd': 1.0}]
+args = parser.parse_args()
+
+def get_random_subnets():
+    sampled_subnets =  random.sample(range(144), 4)
+    sampled_subnets.append(143)
+    return sampled_subnets
+
+def get_big_small_subnets():
+    sampled_small_image_subnets = random.sample(range(6), 2)
+    sampled_big_text_subnets = random.sample(range(6), 2)
+    sampled_big_image_subnets = random.sample(range(6, 12), 2)
+    sampled_small_text_subnets = random.sample(range(6, 12), 2)
+
+    print(sampled_small_image_subnets)
+    list1 = list((np.array(sampled_small_image_subnets)*12 + np.array(sampled_big_text_subnets)).tolist())
+    list2 = list((np.array(sampled_big_image_subnets)*2 + np.array(sampled_small_text_subnets)).tolist())
+    print(list1)
+    print(list2)
+    list1.extend(list2)
+    print(list1)
+
+    sampled_subnets = list1
+     
+    # sampled_subnets = sampled_image_subnets*12 + (12 - sampled_image_subnets)
+    sampled_subnets.append(143)
+    return sampled_subnets
+                           
+def get_sampling_function(args):
+    if args.sampling_function == 'randomized_sampling':
+        return get_random_subnets()
+    elif args.sampling_function == 'big_small_sampling':
+        return get_big_small_subnets()
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
@@ -74,16 +87,7 @@ def build_loaders(dataframe, tokenizer, mode):
     )
     return dataloader
 
-def change_image_encoder_subnet(model, subnet_no):
-    model.image_encoder.ofa_network.set_active_subnet(w=image_subnets[subnet_no]['w'],
-                                      e=image_subnets[subnet_no]['e'], 
-                                      d=image_subnets[subnet_no]['d'])
-    manual_subnet = model.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
-    model.image_encoder.model[0] = manual_subnet
 
-def change_text_encoder_subnet(model, subnet_no):
-    model.text_encoder.model.apply(lambda m: setattr(m, 'depth_mult', text_subnets[subnet_no]['d']))
-    model.text_encoder.model.apply(lambda m: setattr(m, 'width_mult', text_subnets[subnet_no]['w']))
  
 def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
     loss_meter = AvgMeter()
@@ -91,14 +95,20 @@ def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
     for batch in tqdm_object:
         batch = {k: v.to(CFG.device) for k, v in batch.items() if k != "caption"}
         optimizer.zero_grad()
-        random_integers = random.sample(range(144), 4)
-        for subnet_no in random_integers:
+
+        subnet_sampling_function = get_sampling_function(args)
+        subnets = subnet_sampling_function
+
+        # if args.sam
+        # subnets = 
+        print("Subnets:", subnets)
+        for subnet_no in subnets:
             # print(model)
-            change_image_encoder_subnet(model, int(subnet_no/12))
-            change_text_encoder_subnet(model, int(subnet_no%12))
+            model.change_image_encoder_subnet(int(subnet_no/12))
+            model.change_text_encoder_subnet(int(subnet_no%12))
 
             print(model.eval())
-            loss = model(batch)/len(random_integers)
+            loss = model(batch)/len(subnets)
             loss.backward()
         
         optimizer.step()

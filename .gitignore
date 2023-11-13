@@ -5,3 +5,4 @@ Flicker-8k/
 *.out
 *.pt
 *.zip
+pretrained/

@@ -5,6 +5,31 @@ import torch.nn.functional as F
 import config as CFG
 from modules import ImageEncoder, TextEncoder, ProjectionHead
 
+image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
+           {'w': 1, 'd': 2, 'e': 0.25},
+           {'w': 1, 'd': 1, 'e': 0.35},
+           {'w': 1, 'd': 0, 'e': 0.25},
+           {'w': 0.65, 'd': 2, 'e': 0.35},
+           {'w': 0.65, 'd': 1, 'e': 0.2},
+           {'w': 0.65, 'd': 1, 'e': 0.25},
+           {'w': 0.65, 'd': 0, 'e': 0.35},
+           {'w': 0.35, 'd': 2, 'e': 0.2},
+           {'w': 0.35, 'd': 1, 'e': 0.25},
+           {'w': 0.35, 'd': 0, 'e': 0.35},
+           {'w': 0.35, 'd': 0, 'e': 0.2}]
+
+text_subnets = [{'w': 0.25, 'd': 0.5},
+                {'w': 0.25, 'd': 0.75},
+                {'w': 0.25, 'd': 1.0},
+                {'w': 0.5, 'd': 0.5},
+                {'w': 0.5, 'd': 0.75},
+                {'w': 0.5, 'd': 1.0},
+                {'w': 0.75, 'd': 0.5},
+                {'w': 0.75, 'd': 0.75},
+                {'w': 0.75, 'd': 1.0},
+                {'w': 1.0, 'd': 0.5},
+                {'w': 1.0, 'd': 0.75},
+                {'w': 1.0, 'd': 1.0}]
 
 class CLIPModel(nn.Module):
     def __init__(
@@ -46,6 +71,17 @@ class CLIPModel(nn.Module):
         images_loss = cross_entropy(logits.T, targets.T, reduction='none')
         loss =  (images_loss + texts_loss) / 2.0 # shape: (batch_size)
         return loss.mean()
+    
+    def change_image_encoder_subnet(self, subnet_no):
+        self.image_encoder.ofa_network.set_active_subnet(w=image_subnets[subnet_no]['w'],
+                                        e=image_subnets[subnet_no]['e'], 
+                                        d=image_subnets[subnet_no]['d'])
+        manual_subnet = self.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
+        self.image_encoder.model[0] = manual_subnet
+
+    def change_text_encoder_subnet(self, subnet_no):
+        self.text_encoder.model.apply(lambda m: setattr(m, 'depth_mult', text_subnets[subnet_no]['d']))
+        self.text_encoder.model.apply(lambda m: setattr(m, 'width_mult', text_subnets[subnet_no]['w']))
 
 
 def cross_entropy(preds, targets, reduction='none'):
