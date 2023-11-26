@@ -4,6 +4,7 @@ import timm
 from transformers import DistilBertModel, DistilBertConfig, BertForSequenceClassification, BertConfig
 import config as CFG
 from once_for_all.ofa.model_zoo import ofa_net
+import itertools
 
 image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
            {'w': 1, 'd': 2, 'e': 0.25},
@@ -19,7 +20,7 @@ image_subnets = [{'w': 1, 'd': 2, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.2}]
 
 text_config_class = BertConfig
-text_config = text_config_class.from_pretrained("pretrained/dynabert/MRPC/", num_labels=768)
+text_config = text_config_class.from_pretrained("pretrained/dynabert/QQP/", num_labels=768)
 text_model = BertForSequenceClassification.from_pretrained("pretrained/dynabert/QQP/", config=text_config, ignore_mismatched_sizes=True)
     
 class ImageEncoder(nn.Module):
@@ -49,7 +50,7 @@ class ImageEncoder(nn.Module):
             shared_linear_layer
         )
         
-        print(self.model.eval())
+        # print(self.model.eval())
         for p in self.model.parameters():
             p.requires_grad = trainable
 
@@ -70,7 +71,7 @@ class TextEncoder(nn.Module):
         for p in self.model.parameters():
             p.requires_grad = trainable
 
-        print(self.model.eval())
+        # print(self.model.eval())
         # we are using the CLS token hidden representation as the sentence's embedding
         self.target_token_idx = 0
 
@@ -104,7 +105,7 @@ class ProjectionHead(nn.Module):
             x = x.logits
         except:
             pass
-        print(x.shape)
+        # print(x.shape)
         # x = x.logits
         
         projected = self.projection(x)

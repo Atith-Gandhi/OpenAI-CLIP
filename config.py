@@ -1,26 +1,29 @@
 import torch
 
-debug = True
-image_path = "./Flicker-8k/Images"
-captions_path = "./Flicker-8k"
-batch_size = 8
-num_workers = 0
-lr = 1e-3
+debug = False
+image_path = "./Datasets/Flicker-8k/Images"
+captions_path = "./Datasets/Flicker-8k"
+batch_size = 32
+num_workers = 4
+head_lr = 1e-3
+image_encoder_lr = 1e-4
+text_encoder_lr = 1e-5
 weight_decay = 1e-3
-patience = 2
-factor = 0.5
+patience = 1
+factor = 0.8
 epochs = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+continue_training = False
 
 model_name = 'resnet50'
 image_embedding = 2048
-text_encoder_model = "distilbert-base-uncased"
+text_encoder_model = "bert-base-uncased"
 text_embedding = 768
-text_tokenizer = "distilbert-base-uncased"
+text_tokenizer = "bert-base-uncased"
 max_length = 200
 
-pretrained = False # for both image encoder and text encoder
-trainable = False # for both image encoder and text encoder
+pretrained = True # for both image encoder and text encoder
+trainable = True # for both image encoder and text encoder
 temperature = 1.0
 
 # image size

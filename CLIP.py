@@ -18,7 +18,7 @@ image_subnets = [{'w': 1, 'd': 2, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.2}]
 
-text_subnets = [{'w': 0.25, 'd': 0.5},
+text_subnets = list(reversed([{'w': 0.25, 'd': 0.5},
                 {'w': 0.25, 'd': 0.75},
                 {'w': 0.25, 'd': 1.0},
                 {'w': 0.5, 'd': 0.5},
@@ -29,7 +29,8 @@ text_subnets = [{'w': 0.25, 'd': 0.5},
                 {'w': 0.75, 'd': 1.0},
                 {'w': 1.0, 'd': 0.5},
                 {'w': 1.0, 'd': 0.75},
-                {'w': 1.0, 'd': 1.0}]
+                {'w': 1.0, 'd': 1.0}]))
+
 
 class CLIPModel(nn.Module):
     def __init__(
@@ -44,6 +45,8 @@ class CLIPModel(nn.Module):
         self.image_projection = ProjectionHead(embedding_dim=image_embedding)
         self.text_projection = ProjectionHead(embedding_dim=text_embedding)
         self.temperature = temperature
+        self.image_subnet_no = 0
+        self.text_subnet_no = 0
 
     def forward(self, batch):
         # Getting Image and Text Features
@@ -78,10 +81,15 @@ class CLIPModel(nn.Module):
                                         d=image_subnets[subnet_no]['d'])
         manual_subnet = self.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
         self.image_encoder.model[0] = manual_subnet
+        self.image_subnet_no = subnet_no
 
     def change_text_encoder_subnet(self, subnet_no):
         self.text_encoder.model.apply(lambda m: setattr(m, 'depth_mult', text_subnets[subnet_no]['d']))
         self.text_encoder.model.apply(lambda m: setattr(m, 'width_mult', text_subnets[subnet_no]['w']))
+        self.text_subnet_no = subnet_no
+    
+    def get_subnet_no(self, subnet_no):
+        return (self.text_subnet_no, self.image_subnet_no)
 
 
 def cross_entropy(preds, targets, reduction='none'):
@@ -104,4 +112,4 @@ if __name__ == '__main__':
 
     CLIP = CLIPModel()
     loss = CLIP(batch)
-    print("")
+    # print("")

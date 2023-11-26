@@ -3,7 +3,7 @@ import cv2
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from transformers import DistilBertTokenizer
+from transformers import BertTokenizer
 import matplotlib.pyplot as plt
 
 import config as CFG
@@ -11,7 +11,7 @@ from main import build_loaders
 from CLIP import CLIPModel
 
 def get_image_embeddings(valid_df, model_path):
-    tokenizer = DistilBertTokenizer.from_pretrained(CFG.text_tokenizer)
+    tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
     valid_loader = build_loaders(valid_df, tokenizer, mode="valid")
     
     model = CLIPModel().to(CFG.device)
@@ -27,7 +27,7 @@ def get_image_embeddings(valid_df, model_path):
     return model, torch.cat(valid_image_embeddings)
 
 def find_matches(model, image_embeddings, query, image_filenames, n=9):
-    tokenizer = DistilBertTokenizer.from_pretrained(CFG.text_tokenizer)
+    tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
     encoded_query = tokenizer([query])
     batch = {
         key: torch.tensor(values).to(CFG.device)
