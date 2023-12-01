@@ -6,3 +6,9 @@ Flicker-8k/
 *.pt
 *.zip
 pretrained/
+*.png
+*.out
+*.ipynb
+*.deb
+*.sbatch
+

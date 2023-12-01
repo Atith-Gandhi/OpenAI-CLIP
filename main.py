@@ -8,6 +8,7 @@ import random
 import torch
 from torch import nn
 from transformers import BertTokenizer
+# from transformers import BertTokenizer
 
 import config as CFG
 from dataset import CLIPDataset, get_transforms
@@ -27,19 +28,19 @@ def get_no_sampling_subnets():
     return [0]
 
 def get_random_subnets():
-    sampled_subnets =  random.sample(range(144), 4)
+    sampled_subnets =  random.sample(range(108), 4)
     sampled_subnets.append(0)
     return sampled_subnets
 
 def get_big_small_subnets():
-    sampled_small_image_subnets = random.sample(range(6), 2)
+    sampled_small_image_subnets = random.sample(range(4), 2)
     sampled_big_text_subnets = random.sample(range(6), 2)
-    sampled_big_image_subnets = random.sample(range(6, 12), 2)
+    sampled_big_image_subnets = random.sample(range(5, 9), 2)
     sampled_small_text_subnets = random.sample(range(6, 12), 2)
 
     # print(sampled_small_image_subnets)
     list1 = list((np.array(sampled_small_image_subnets)*12 + np.array(sampled_big_text_subnets)).tolist())
-    list2 = list((np.array(sampled_big_image_subnets)*2 + np.array(sampled_small_text_subnets)).tolist())
+    list2 = list((np.array(sampled_big_image_subnets)*12 + np.array(sampled_small_text_subnets)).tolist())
     # print(list1)
     # print(list2)
     list1.extend(list2)
@@ -61,9 +62,9 @@ def get_sampling_function(args):
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
-    print(CFG.debug)
+    # print(CFG.debug)
     max_id = dataframe.index.max() + 1 if not CFG.debug else 100
-    print(max_id)
+    # print(max_id)
     image_ids = np.arange(0, max_id)
     np.random.seed(42)
     valid_ids = np.random.choice(
@@ -73,8 +74,8 @@ def make_train_valid_dfs():
     train_dataframe = dataframe[dataframe.index.isin(train_ids)].reset_index(drop=True)
     valid_dataframe = dataframe[dataframe.index.isin(valid_ids)].reset_index(drop=True)
 
-    print(len(train_dataframe))
-    print(len(valid_dataframe))
+    # print(len(train_dataframe))
+    # print(len(valid_dataframe))
     return train_dataframe, valid_dataframe
 
 
@@ -127,13 +128,15 @@ def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
 #         # if args.sam
 #         # subnets = 
 #         # print("Subnets:", subnets)
+        total_loss = 0
         for subnet_no in subnets:
             # print(model)
             model.change_image_encoder_subnet(int(subnet_no/12))
-            model.change_text_encoder_subnet(int(subnet_no%12))
+            model.change_text_encoder_subnet(int(subnet_no%9))
 
             # print(model.eval())
             loss = model(batch)/len(subnets)
+            total_loss += model(batch)/len(subnets)
             loss.backward()
         
         optimizer.step()
@@ -141,7 +144,7 @@ def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
             lr_scheduler.step()
 
         count = batch["image"].size(0)
-        loss_meter.update(loss.item(), count)
+        loss_meter.update(total_loss.item(), count)
 
         tqdm_object.set_postfix(train_loss=loss_meter.avg, lr=get_lr(optimizer))
     return loss_meter
@@ -203,15 +206,14 @@ def valid_epoch(model, valid_loader):
 #     CLIPModel(submodel=random_integers[3]).to(CFG.device)]
 
 def main():
-    model_name = args.sampling_function
     train_df, valid_df = make_train_valid_dfs()
+    # tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
     tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
     train_loader = build_loaders(train_df, tokenizer, mode="train")
     valid_loader = build_loaders(valid_df, tokenizer, mode="valid")
 
 
     model = CLIPModel().to(CFG.device)
-    
     params = [
         {"params": model.image_encoder.parameters(), "lr": CFG.image_encoder_lr},
         {"params": model.text_encoder.parameters(), "lr": CFG.text_encoder_lr},
@@ -226,25 +228,22 @@ def main():
     step = "epoch"
 
     best_loss = float('inf')
-    if CFG.continue_training:
-        checkpoint = torch.load(model_name)
-        model.load_state_dict(checkpoint)
-
+    print(CFG.epochs)
     for epoch in range(CFG.epochs):
         print(f"Epoch: {epoch + 1}")
         model.train()
         train_loss = train_epoch(model, train_loader, optimizer, lr_scheduler, step)
         model.eval()
-        print(model.get_subnet_no)
         with torch.no_grad():
             valid_loss = valid_epoch(model, valid_loader)
         
         if valid_loss.avg < best_loss:
             best_loss = valid_loss.avg
-            torch.save(model.state_dict(), f'{model_name}_{epoch}.pt')
+            torch.save(model.state_dict(), f'Best_ResnetDynabert_{args.sampling_function}.pt')
             print("Saved Best Model!")
         
         lr_scheduler.step(valid_loss.avg)
+
 
 
 if __name__ == "__main__":

@@ -16,10 +16,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 continue_training = False
 
 model_name = 'resnet50'
-image_embedding = 2048
-text_encoder_model = "bert-base-uncased"
+image_embedding = 1000
+text_encoder_model = "huawei-noah/DynaBERT_MNLI"
 text_embedding = 768
-text_tokenizer = "bert-base-uncased"
+text_tokenizer = "huawei-noah/DynaBERT_MNLI"
 max_length = 200
 
 pretrained = True # for both image encoder and text encoder

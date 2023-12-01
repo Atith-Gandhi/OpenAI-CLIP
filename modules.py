@@ -1,7 +1,10 @@
 import torch
 from torch import nn
 import timm
-from transformers import DistilBertModel, DistilBertConfig, BertForSequenceClassification, BertConfig
+# from local_transformers import BertForSequenceClassification, BertConfig
+# from transformers import AutoConfig, AutoModel
+# from transformers import BertModel, DistilBertConfig
+from local_transformers import BertModel
 import config as CFG
 from once_for_all.ofa.model_zoo import ofa_net
 import itertools
@@ -19,10 +22,11 @@ image_subnets = [{'w': 1, 'd': 2, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.35},
            {'w': 0.35, 'd': 0, 'e': 0.2}]
 
-text_config_class = BertConfig
-text_config = text_config_class.from_pretrained("pretrained/dynabert/QQP/", num_labels=768)
-text_model = BertForSequenceClassification.from_pretrained("pretrained/dynabert/QQP/", config=text_config, ignore_mismatched_sizes=True)
+# text_config_class = BertConfig
+# text_config = AutoConfig.from_pretrained("huawei-noah/DynaBERT_MNLI")
+# text_model = AutoModel.from_pretrained("huawei-noah/DynaBERT_MNLI", config=text_config)
     
+# text_conf
 class ImageEncoder(nn.Module):
     """
     Encode images to a fixed size vector
@@ -32,25 +36,14 @@ class ImageEncoder(nn.Module):
         self,  model_name=CFG.model_name, pretrained=CFG.pretrained, trainable=CFG.trainable
     ):
         super().__init__()
-        # self.model = timm.create_model(
-        #     model_name, pretrained, num_classes=0, global_pool="avg"
-        # )
-        #agandhi98 
-        # print(submodel)
-        # print(image_subnets[submodel])
         self.ofa_network = ofa_net('ofa_resnet50', pretrained=True)
-        shared_linear_layer = nn.Linear(1000, 2048)
-        
-        self.ofa_network.set_active_subnet(w=1,
-                                      e=0.35, 
+        self.ofa_network.set_active_subnet(e=0.35, 
                                       d=2)
-        manual_subnet = self.ofa_network.get_active_subnet(preserve_weight=True)
-        self.model = nn.Sequential(
-            manual_subnet,
-            shared_linear_layer
-        )
-        
-        # print(self.model.eval())
+        self.model = self.ofa_network.get_active_subnet(preserve_weight=True)
+        # self.model = nn.Sequential(
+        #     manual_subnet,
+        #     shared_linear_layer
+        # )
         for p in self.model.parameters():
             p.requires_grad = trainable
 
@@ -66,7 +59,8 @@ class TextEncoder(nn.Module):
         # else:
         #     self.model = DistilBertModel(config=DistilBertConfig())
         # image_model.apply()
-        self.model = text_model
+        self.model = BertModel.from_pretrained(CFG.text_encoder_model)
+        # self.model = text_model
             
         for p in self.model.parameters():
             p.requires_grad = trainable

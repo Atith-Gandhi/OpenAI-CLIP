@@ -5,18 +5,27 @@ import torch.nn.functional as F
 import config as CFG
 from modules import ImageEncoder, TextEncoder, ProjectionHead
 
-image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
-           {'w': 1, 'd': 2, 'e': 0.25},
-           {'w': 1, 'd': 1, 'e': 0.35},
-           {'w': 1, 'd': 0, 'e': 0.25},
-           {'w': 0.65, 'd': 2, 'e': 0.35},
-           {'w': 0.65, 'd': 1, 'e': 0.2},
-           {'w': 0.65, 'd': 1, 'e': 0.25},
-           {'w': 0.65, 'd': 0, 'e': 0.35},
-           {'w': 0.35, 'd': 2, 'e': 0.2},
-           {'w': 0.35, 'd': 1, 'e': 0.25},
-           {'w': 0.35, 'd': 0, 'e': 0.35},
-           {'w': 0.35, 'd': 0, 'e': 0.2}]
+# image_subnets = [{'w': 1, 'd': 2, 'e': 0.35}, 
+#            {'w': 1, 'd': 2, 'e': 0.25},
+#            {'w': 1, 'd': 1, 'e': 0.35},
+#            {'w': 1, 'd': 0, 'e': 0.25},
+#            {'w': 0.65, 'd': 2, 'e': 0.35},
+#            {'w': 0.65, 'd': 1, 'e': 0.2},
+#            {'w': 0.65, 'd': 1, 'e': 0.25},
+#            {'w': 0.65, 'd': 0, 'e': 0.35},
+#            {'w': 0.35, 'd': 2, 'e': 0.2},
+#            {'w': 0.35, 'd': 1, 'e': 0.25},
+#            {'w': 0.35, 'd': 0, 'e': 0.35},
+#            {'w': 0.35, 'd': 0, 'e': 0.2}]
+image_subnets = [{'d': 2, 'e': 0.35},
+                {'d': 2, 'e': 0.25},
+                {'d': 2, 'e': 0.1},
+                {'d': 1, 'e': 0.35},
+                {'d': 1, 'e': 0.25},
+                {'d': 1, 'e': 0.1},
+                {'d': 0, 'e': 0.35},
+                {'d': 0, 'e': 0.25},
+                {'d': 0, 'e': 0.1},]
 
 text_subnets = list(reversed([{'w': 0.25, 'd': 0.5},
                 {'w': 0.25, 'd': 0.75},
@@ -51,16 +60,22 @@ class CLIPModel(nn.Module):
     def forward(self, batch):
         # Getting Image and Text Features
         image_features = self.image_encoder(batch["image"])
+        # print(self.text_encoder.eval())
         text_features = self.text_encoder(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
-        )
+        )[1]
 
+        # print(text_features[0].shape)
+        # print(text_features[1].shape)
+        # print(text_features[2].shape)
         # print(image_features.shape)
         # print(text_features.shape)
 
         # Getting Image and Text Embeddings (with same dimension)
         image_embeddings = self.image_projection(image_features)
         text_embeddings = self.text_projection(text_features)
+
+        
 
         
         # Calculating the Loss
@@ -76,11 +91,12 @@ class CLIPModel(nn.Module):
         return loss.mean()
     
     def change_image_encoder_subnet(self, subnet_no):
-        self.image_encoder.ofa_network.set_active_subnet(w=image_subnets[subnet_no]['w'],
+        print(subnet_no)
+        self.image_encoder.ofa_network.set_active_subnet(
                                         e=image_subnets[subnet_no]['e'], 
                                         d=image_subnets[subnet_no]['d'])
-        manual_subnet = self.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
-        self.image_encoder.model[0] = manual_subnet
+        self.image_encoder.model = self.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
+        # self.image_encoder.model[0] = manual_subnet
         self.image_subnet_no = subnet_no
 
     def change_text_encoder_subnet(self, subnet_no):
