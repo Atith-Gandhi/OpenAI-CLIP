@@ -1,9 +1,42 @@
 ## SysML Project code running instructions:
 
-1. pip install ofa
-2. Install the Flicker-8k dataset from [here](https://www.kaggle.com/datasets/adityajn105/flickr8k/) and unzip the file to Flicker-8k/ folder
-3. Download Dynabert zip file from [here](https://drive.google.com/file/d/1pYApaDcse5QIB6lZagWO0uElAavFazpA/view) and put it in the pretrained/ folder 
+1. Install once for all:  
+- clone once-for-all repository and rename to once_for_all
+- Install once-for-all dependencies
+```bash
+cd once_for_all
+pip3 install -r requirements.txt
+```
+- Install once-for-all
+```bash
+pip install ofa
+```
 
+2. Install the Flicker-8k dataset from [here](https://www.kaggle.com/datasets/adityajn105/flickr8k/) and unzip the file to Flicker-8k/ folder
+```bash
+# install kaggle
+pip3 install kaggle
+
+# create new token from account using https://www.kaggle.com/docs/api, copy the token to clipboard and paste it into the following file
+~/.kaggle/kaggle.json
+# Download the Images
+kaggle datasets download -d adityajn105/flickr8k
+# Manually download the caption to local, then upload to VM 
+scp -r ~/Downloads/captions.txt.zip team-4-azure-user@52.152.228.91:~/OpenAI-CLIP/Flicker-8k
+```
+3. Download Dynabert zip file from [here](https://drive.google.com/file/d/1pYApaDcse5QIB6lZagWO0uElAavFazpA/view) and put it in the pretrained/ folder 
+```bash
+gdown https://drive.google.com/u/0/uc?id=1pYApaDcse5QIB6lZagWO0uElAavFazpA&export=download
+```
+
+4. Additional installation 
+```bash 
+pip install opencv-python
+pip install transformers
+pip install timm
+pip install albumentations
+pip install boto3
+```
 ## Update (August 2022)
 I am happy to find out that this code has been used and cited in the following papers:
 1. [Domino: Discovering Systematic Errors with Cross-Modal Embeddings](https://arxiv.org/abs/2203.14960) by <em>Eyuboglu et. al.</em> at **ICLR 2022** 

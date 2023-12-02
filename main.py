@@ -28,7 +28,7 @@ def get_no_sampling_subnets():
     return [0]
 
 def get_random_subnets():
-    sampled_subnets =  random.sample(range(108), 4)
+    sampled_subnets =  random.sample(range(108), 2)
     sampled_subnets.append(0)
     return sampled_subnets
 

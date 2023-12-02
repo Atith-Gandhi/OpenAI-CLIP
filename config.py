@@ -14,7 +14,7 @@ factor = 0.8
 epochs = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 continue_training = False
-
+    
 model_name = 'resnet50'
 image_embedding = 1000
 text_encoder_model = "huawei-noah/DynaBERT_MNLI"
