@@ -19,7 +19,7 @@ import itertools
 
 # Define command-line arguments
 parser = argparse.ArgumentParser(description='Your program description')
-parser.add_argument('--sampling-function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling'], default='random',
+parser.add_argument('--sampling-function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling', 'supernet_subnet_sampling'], default='random',
                     help='Choose the sampling function for subnets (random or your custom function)')
 
 args = parser.parse_args()
@@ -51,6 +51,12 @@ def get_big_small_subnets():
     # sampled_subnets = sampled_image_subnets*12 + (12 - sampled_image_subnets)
     sampled_subnets.append(0)
     return sampled_subnets
+
+def get_supernet_subnet_subnets():
+    sampled_image_subnets = random.sample(range(9), 2)
+    sampled_text_subnets = random.sample(range(12), 2)
+
+    return [0, sampled_image_subnets[0]*12, sampled_image_subnets[1]*12, sampled_text_subnets[0], sampled_text_subnets[1]]
                            
 def get_sampling_function(args):
     if args.sampling_function == 'randomized_sampling':
@@ -59,6 +65,8 @@ def get_sampling_function(args):
         return get_big_small_subnets()
     elif args.sampling_function == 'no_sampling':
         return get_no_sampling_subnets()
+    elif args.sampling_function == 'supernet_subnet_sampling':
+        return get_supernet_subnet_subnets()
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
@@ -132,7 +140,7 @@ def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
         for subnet_no in subnets:
             # print(model)
             model.change_image_encoder_subnet(int(subnet_no/12))
-            model.change_text_encoder_subnet(int(subnet_no%9))
+            model.change_text_encoder_subnet(int(subnet_no%12))
 
             # print(model.eval())
             loss = model(batch)/len(subnets)

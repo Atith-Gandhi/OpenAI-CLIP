@@ -17,15 +17,17 @@ from modules import ImageEncoder, TextEncoder, ProjectionHead
 #            {'w': 0.35, 'd': 1, 'e': 0.25},
 #            {'w': 0.35, 'd': 0, 'e': 0.35},
 #            {'w': 0.35, 'd': 0, 'e': 0.2}]
-image_subnets = [{'d': 2, 'e': 0.35},
-                {'d': 2, 'e': 0.25},
-                {'d': 2, 'e': 0.1},
-                {'d': 1, 'e': 0.35},
-                {'d': 1, 'e': 0.25},
-                {'d': 1, 'e': 0.1},
-                {'d': 0, 'e': 0.35},
-                {'d': 0, 'e': 0.25},
-                {'d': 0, 'e': 0.1},]
+image_subnets = [
+                {'d': 2, 'w': 1},
+                {'d': 2, 'w': 0.8},
+                {'d': 2, 'w': 0.65},
+                {'d': 1, 'w': 1},
+                {'d': 1, 'w': 0.8},
+                {'d': 1, 'w': 0.65},
+                {'d': 0, 'w': 1},
+                {'d': 0, 'w': 0.8},
+                {'d': 0, 'w': 0.65}
+            ]
 
 text_subnets = list(reversed([{'w': 0.25, 'd': 0.5},
                 {'w': 0.25, 'd': 0.75},
@@ -93,7 +95,8 @@ class CLIPModel(nn.Module):
     def change_image_encoder_subnet(self, subnet_no):
         print(subnet_no)
         self.image_encoder.ofa_network.set_active_subnet(
-                                        e=image_subnets[subnet_no]['e'], 
+                                        w=image_subnets[subnet_no]['w'],
+                                        # e=image_subnets[subnet_no]['e'], 
                                         d=image_subnets[subnet_no]['d'])
         self.image_encoder.model = self.image_encoder.ofa_network.get_active_subnet(preserve_weight=True)
         # self.image_encoder.model[0] = manual_subnet
