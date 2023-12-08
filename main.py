@@ -19,7 +19,7 @@ import itertools
 
 # Define command-line arguments
 parser = argparse.ArgumentParser(description='Your program description')
-parser.add_argument('--sampling-function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling'], default='random',
+parser.add_argument('--sampling-function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling', 'ss_bb_sampling'], default='random',
                     help='Choose the sampling function for subnets (random or your custom function)')
 
 args = parser.parse_args()
@@ -28,7 +28,7 @@ def get_no_sampling_subnets():
     return [0]
 
 def get_random_subnets():
-    sampled_subnets =  random.sample(range(108), 2)
+    sampled_subnets =  random.sample(range(108), 1)
     sampled_subnets.append(0)
     return sampled_subnets
 
@@ -51,6 +51,22 @@ def get_big_small_subnets():
     # sampled_subnets = sampled_image_subnets*12 + (12 - sampled_image_subnets)
     sampled_subnets.append(0)
     return sampled_subnets
+
+def get_ss_bb_subnets(): # small small big big
+    sampled_small_image_subnets = random.sample(range(4), 2)
+    sampled_big_text_subnets = random.sample(range(6), 2)
+    sampled_big_image_subnets = random.sample(range(5, 9), 2)
+    sampled_small_text_subnets = random.sample(range(6, 12), 2)
+
+    # print(sampled_small_image_subnets)
+    list1 = list((np.array(sampled_small_image_subnets)*12 + np.array(sampled_small_text_subnets)).tolist())
+    list2 = list((np.array(sampled_big_image_subnets)*12 + np.array(sampled_big_text_subnets)).tolist())
+
+    list1.extend(list2)
+    sampled_subnets = list1
+
+    sampled_subnets.append(0)
+    return sampled_subnets
                            
 def get_sampling_function(args):
     if args.sampling_function == 'randomized_sampling':
@@ -59,6 +75,8 @@ def get_sampling_function(args):
         return get_big_small_subnets()
     elif args.sampling_function == 'no_sampling':
         return get_no_sampling_subnets()
+    elif args.sampling_function == 'ss_bb_sampling':
+        return get_ss_bb_subnets()
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
@@ -138,6 +156,9 @@ def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
             loss = model(batch)/len(subnets)
             total_loss += model(batch)/len(subnets)
             loss.backward()
+
+            print ("Subnet No: ", subnet_no,  "image subnet: ", int(subnet_no/12), "text_subnets: ", int(subnet_no%12), "number of params: ", get_no_params(model))
+            
         
         optimizer.step()
         if step == "batch":
@@ -205,6 +226,16 @@ def valid_epoch(model, valid_loader):
 #     CLIPModel(submodel=random_integers[2]).to(CFG.device),
 #     CLIPModel(submodel=random_integers[3]).to(CFG.device)]
 
+def get_no_params(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+def print_subnet_params(model): 
+    for text_idx in range(11, -1, -1):
+        for image_idx in range(0, 9):
+            model.change_image_encoder_subnet(image_idx)
+            model.change_text_encoder_subnet(text_idx)
+            print ("image subnet: ", image_idx, "text_subnets: ", text_idx, "number of params: ", get_no_params(model))
+
 def main():
     train_df, valid_df = make_train_valid_dfs()
     # tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
@@ -229,6 +260,8 @@ def main():
 
     best_loss = float('inf')
     print(CFG.epochs)
+    print_subnet_params(model)
+    
     for epoch in range(CFG.epochs):
         print(f"Epoch: {epoch + 1}")
         model.train()
