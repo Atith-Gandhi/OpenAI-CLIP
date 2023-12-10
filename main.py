@@ -69,7 +69,7 @@ def get_randomized_and_supernet_subnet_subnets():
     sampled_image_subnets = random.sample(range(9), 1)
     sampled_text_subnets = random.sample(range(12), 1)
     random_subnets = random.sample(range(108), 2)
-    return [0, sampled_image_subnets[0]*12, random_subnets[0],  sampled_text_subnets[0], random_subnets[1]][:2]
+    return [0, sampled_image_subnets[0]*12, random_subnets[0],  sampled_text_subnets[0], random_subnets[1]]
 
 
 def get_width_balanced_subnets():
