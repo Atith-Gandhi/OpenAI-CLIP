@@ -11,4 +11,5 @@ pretrained/
 *.ipynb
 *.deb
 *.sbatch
-
+*.npy
+huawei-noah/

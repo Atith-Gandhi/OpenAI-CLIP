@@ -8,6 +8,7 @@ import random
 import torch
 from torch import nn
 from transformers import BertTokenizer
+import re
 # from transformers import AutoTokenizer
 
 import config as CFG
@@ -19,16 +20,17 @@ import argparse
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
 import cv2
+from torch.profiler import profile, record_function, ProfilerActivity
 
 # for i in range(144):
 parser = argparse.ArgumentParser(description='Your program description')
-parser.add_argument('--start_subnet', type=int, help='Choose the subnet no to start testing from')
-parser.add_argument('--sampling_function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling', 'supernet_subnet_sampling', 'depth_balanced_sampling', 'width_balanced_sampling', 'ss_bb_sampling'], default='random',
+# parser.add_argument('--start_subnet', type=int, help='Choose the subnet no to start testing from')
+parser.add_argument('--sampling_function', type=str, choices=['randomized_sampling', 'big_small_sampling', 'no_sampling', 'supernet_subnet_sampling'], default='random',
                     help='Choose the sampling function for subnets (random or your custom function)')
 
 args = parser.parse_args()
 
-def get_dot_similarity(valid_df, model_path, subnet=0):
+def get_flops(valid_df, model_path, subnet=0):
     tokenizer = BertTokenizer.from_pretrained(CFG.text_tokenizer)
     valid_loader = build_loaders(valid_df, tokenizer, mode="valid")
     
@@ -41,24 +43,49 @@ def get_dot_similarity(valid_df, model_path, subnet=0):
     
     valid_image_embeddings = []
     dot_similarity = []
+    flops = 0
     with torch.no_grad():
         for batch in tqdm(valid_loader):
-            image_features = model.image_encoder(batch["image"].to(CFG.device))
-            image_embeddings = model.image_projection(image_features)
+            with profile(
+                activities=[ProfilerActivity.CUDA],
+                with_stack=True,
+            ) as prof:
+                image_features = model.image_encoder(batch["image"].to(CFG.device))
+                image_embeddings = model.image_projection(image_features)
 
-            text_features = model.text_encoder(
-                input_ids=batch["input_ids"].to(CFG.device), attention_mask=batch["attention_mask"].to(CFG.device)
-            )[1]
-            text_embeddings = model.text_projection(text_features)
 
-            image_embeddings_n = F.normalize(image_embeddings, p=2, dim=-1)
-            text_embeddings_n = F.normalize(text_embeddings, p=2, dim=-1)
+                text_features = model.text_encoder(
+                    input_ids=batch["input_ids"].to(CFG.device), attention_mask=batch["attention_mask"].to(CFG.device)
+                )[1]
+                text_embeddings = model.text_projection(text_features)
+            
+            pattern = re.compile(r"Self CUDA time total: (\d+\.\d+)ms")
+            flops = prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
 
-            similarity = text_embeddings_n @ image_embeddings_n.T
-            print(similarity.shape)
-            dot_similarity.append((text_embeddings_n @ image_embeddings_n.T)[0][0])
+            # Find the match in the string
+            match = re.search(pattern, flops)
+
+            # Extract the float value
+            if match:
+                float_value = float(match.group(1))
+                print(f"The float value is: {float_value}")
+            else:
+                print("No match found.")
+            # flops = sum([item.cuda_time for item in prof.key_averages()])/1000.00
+            # flops = prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
+            # print(f'Total FLOPs: {flops:.2f}')
+            # print(float_value)
+            # break
+            return float_value
+
+            # image_embeddings_n = F.normalize(image_embeddings, p=2, dim=-1)
+            # text_embeddings_n = F.normalize(text_embeddings, p=2, dim=-1)
+
+            # similarity = text_embeddings_n @ image_embeddings_n.T
+            # print(similarity.shape)
+            # dot_similarity.append((text_embeddings_n @ image_embeddings_n.T)[0][0])
             # valid_image_embeddings.append(image_embeddings)
-    return dot_similarity
+    return flops
 
 def make_train_valid_dfs():
     dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")
@@ -99,14 +126,14 @@ def find_matches(model, image_embeddings, query, image_filenames, n=9, subnet=0)
         for key, values in encoded_query.items()
     }
     with torch.no_grad():
-        print("Subnet:", subnet)
+        # print("Subnet:", subnet)
         
         text_features = model.text_encoder(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
         )[1]
         # print(model.text_encoder.model.encoder)
         # print(model.text_encoder.model.encoder.width_mult)
-        print(text_features)
+        # print(text_features)
         text_embeddings = model.text_projection(text_features)
     
     image_embeddings_n = F.normalize(image_embeddings, p=2, dim=-1)
@@ -125,16 +152,17 @@ def find_matches(model, image_embeddings, query, image_filenames, n=9, subnet=0)
     
     plt.savefig(f'Best_ResnetDynabert_{args.sampling_function}_{subnet}.png')
 
-save_dot_similarity_matrix = np.zeros(12)
+save_flops = np.zeros(108)
 
-for subnet in range(args.start_subnet, args.start_subnet + 12):
+for subnet in range(108):
     # subnet = 0
     _, valid_df = make_train_valid_dfs()
-    dot_similarity = get_dot_similarity(valid_df, f'Best_ResnetDynabert_{args.sampling_function}.pt', subnet=subnet)
-    save_dot_similarity_matrix[subnet - args.start_subnet] = sum(dot_similarity)/len(dot_similarity)
-    print(save_dot_similarity_matrix[subnet - args.start_subnet])
+    flops = get_flops(valid_df, f'Best_ResnetDynabert_{args.sampling_function}.pt', subnet=subnet)
+    # print(flops)
+    save_flops[subnet] = flops
+    # print(save_dot_similarity_matrix[subnet - args.start_subnet])
 
-np.save(f'{args.sampling_function}_{args.start_subnet}.npy', save_dot_similarity_matrix)
+np.save(f'{args.sampling_function}_flops.npy', save_flops)
 # print(dot_similarity)
 # find_matches(model, 
 #              image_embeddings,

@@ -17,9 +17,9 @@ continue_training = False
 
 model_name = 'resnet50'
 image_embedding = 1000
-text_encoder_model = "huawei-noah/DynaBERT_MNLI"
+text_encoder_model = "pretrained/dynabert/MNLI"
 text_embedding = 768
-text_tokenizer = "huawei-noah/DynaBERT_MNLI"
+text_tokenizer = "pretrained/dynabert/MNLI"
 max_length = 200
 
 pretrained = True # for both image encoder and text encoder

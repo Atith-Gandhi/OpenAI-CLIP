@@ -29,19 +29,32 @@ image_subnets = [
                 {'d': 0, 'w': 0.65}
             ]
 
-text_subnets = list(reversed([{'w': 0.25, 'd': 0.5},
-                {'w': 0.25, 'd': 0.75},
-                {'w': 0.25, 'd': 1.0},
-                {'w': 0.5, 'd': 0.5},
-                {'w': 0.5, 'd': 0.75},
-                {'w': 0.5, 'd': 1.0},
-                {'w': 0.75, 'd': 0.5},
-                {'w': 0.75, 'd': 0.75},
-                {'w': 0.75, 'd': 1.0},
-                {'w': 1.0, 'd': 0.5},
-                {'w': 1.0, 'd': 0.75},
-                {'w': 1.0, 'd': 1.0}]))
-
+# text_subnets = list(reversed([{'w': 0.25, 'd': 0.5},
+#                 {'w': 0.25, 'd': 0.75},
+#                 {'w': 0.25, 'd': 1.0},
+#                 {'w': 0.5, 'd': 0.5},
+#                 {'w': 0.5, 'd': 0.75},
+#                 {'w': 0.5, 'd': 1.0},
+#                 {'w': 0.75, 'd': 0.5},
+#                 {'w': 0.75, 'd': 0.75},
+#                 {'w': 0.75, 'd': 1.0},
+#                 {'w': 1.0, 'd': 0.5},
+#                 {'w': 1.0, 'd': 0.75},
+#                 {'w': 1.0, 'd': 1.0}]))
+text_subnets = [
+                {'d': 1.0, 'w': 1.0},
+                {'d': 1.0, 'w': 0.75},
+                {'d': 1.0, 'w': 0.5},
+                {'d': 1.0, 'w': 0.25},
+                {'d': 0.75, 'w': 1.0},
+                {'d': 0.75, 'w': 0.75},
+                {'d': 0.75, 'w': 0.5},
+                {'d': 0.75, 'w': 0.25},
+                {'d': 0.5, 'w': 1.0},
+                {'d': 0.5, 'w': 0.75},
+                {'d': 0.5, 'w': 0.5},
+                {'d': 0.5, 'w': 0.25}
+            ]
 
 class CLIPModel(nn.Module):
     def __init__(
@@ -93,7 +106,7 @@ class CLIPModel(nn.Module):
         return loss.mean()
     
     def change_image_encoder_subnet(self, subnet_no):
-        print(subnet_no)
+        # print(subnet_no)
         self.image_encoder.ofa_network.set_active_subnet(
                                         w=image_subnets[subnet_no]['w'],
                                         # e=image_subnets[subnet_no]['e'], 
